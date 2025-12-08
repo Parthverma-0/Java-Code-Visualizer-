@@ -1,0 +1,5 @@
+{
+  "name": "Java Code Visualizer",
+  "description": "A powerful educational tool to visualize Java code execution step-by-step. Features matrix visualization, variable tracking, and real-time logic flow analysis.",
+  "requestFramePermissions": []
+}
