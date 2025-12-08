@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { generateExecutionTrace } from './services/geminiService';
+// The execution trace generation now runs on a server endpoint.
+// Frontend calls POST /api/trace with { code } and receives the trace.
 import { TraceStep, ExecutionTrace, PlayerState } from './types';
 import { CodeDisplay } from './components/CodeDisplay';
 import { VariableTable } from './components/VariableTable';
@@ -20,11 +21,6 @@ const App: React.FC = () => {
   const loadingIntervalRef = useRef<number | null>(null);
 
   const handleVisualize = async () => {
-    if (!process.env.API_KEY) {
-        alert("Please set your API_KEY in the environment.");
-        return;
-    }
-
     setLoading(true);
     setLoadingTime(0);
     setError(null);
@@ -38,22 +34,27 @@ const App: React.FC = () => {
     }, 1000);
 
     try {
-      const result: ExecutionTrace = await generateExecutionTrace(code);
-      
-      if (result.status === 'error') {
-        setError(result.error || "Unknown error occurred");
+      const resp = await fetch('/api/trace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+
+      const result = await resp.json();
+
+      if (!resp.ok || result.status === 'error') {
+        setError(result.error || 'Trace generation failed');
       } else {
-        setTrace(result.steps);
-        if (result.steps.length > 0) {
-          setCurrentStepIndex(0);
-        }
+        setTrace(result.steps || []);
+        if ((result.steps || []).length > 0) setCurrentStepIndex(0);
       }
-    } catch (err) {
-      setError("Failed to communicate with execution engine.");
+    } catch (err: any) {
+      setError(err?.message || 'Failed to communicate with execution engine.');
     } finally {
       setLoading(false);
       if (loadingIntervalRef.current) {
         clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
       }
     }
   };

@@ -1,8 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { TraceStep, ExecutionTrace } from '../types';
+import type { TraceStep, ExecutionTrace } from '../types.ts';
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;   // <-- change this line
   if (!apiKey) {
     throw new Error("API Key not found in environment variables");
   }
@@ -75,7 +75,6 @@ export const generateExecutionTrace = async (code: string): Promise<ExecutionTra
       }
     });
 
-    // Increased timeout to 60s to prevent premature timeout on complex queries
     const timeoutPromise = new Promise<any>((_, reject) => 
         setTimeout(() => reject(new Error("Request timed out after 60 seconds. Please try again or simplify the code.")), 60000)
     );
@@ -93,7 +92,6 @@ export const generateExecutionTrace = async (code: string): Promise<ExecutionTra
         return { status: 'error', error: rawResult.error || "Execution failed", steps: [] };
     }
 
-    // State Merging Logic: Reconstruct full state from deltas
     let currentVariablesState: Record<string, any> = {};
 
     const steps: TraceStep[] = (rawResult.steps || []).map((step: any) => {
@@ -104,7 +102,6 @@ export const generateExecutionTrace = async (code: string): Promise<ExecutionTra
                 let parsedValue = v.value;
                 if (typeof v.value === 'string') {
                     const trimmed = v.value.trim();
-                    // Basic heuristic to parse JSON strings used for arrays/objects
                     if ((trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed === 'true' || trimmed === 'false' || /^-?\d+(\.\d+)?$/.test(trimmed))) {
                          try {
                              parsedValue = JSON.parse(trimmed);
@@ -117,14 +114,12 @@ export const generateExecutionTrace = async (code: string): Promise<ExecutionTra
             });
         }
 
-        // Merge updates into the persistent state
         currentVariablesState = { ...currentVariablesState, ...stepUpdates };
 
         return {
             line: step.line,
             explanation: step.explanation,
             stdout: step.stdout,
-            // Return a copy of the full state at this point
             variables: { ...currentVariablesState }
         };
     });
